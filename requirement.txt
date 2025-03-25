@@ -4,6 +4,7 @@ numpy
 pillow
 svgwrite
 scikit-image
+opencv-python-headless
 
 
 
