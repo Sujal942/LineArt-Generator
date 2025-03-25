@@ -1,0 +1,10 @@
+streamlit
+opencv-python
+numpy
+pillow
+svgwrite
+scikit-image
+
+
+
+
