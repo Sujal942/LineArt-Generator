@@ -1,0 +1,885 @@
+# import streamlit as st
+# import cv2
+# import numpy as np
+# import svgwrite
+# from PIL import Image
+# import tempfile
+# import os
+# import base64
+
+# def preprocess_image(image):
+#     """Convert image to a clean binary edge map."""
+#     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    
+#     # Apply Gaussian blur to reduce noise
+#     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    
+#     # Canny Edge Detection (Tuned for cleaner lines)
+#     edges = cv2.Canny(blurred, threshold1=50, threshold2=150)
+
+#     return edges
+
+# def extract_contours(edge_image):
+#     """Extracts continuous contours from the edge image."""
+#     contours, _ = cv2.findContours(edge_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+#     return contours
+
+# def contours_to_svg(contours, width, height, output_svg):
+#     """Convert contours to an SVG file with smooth lines."""
+#     dwg = svgwrite.Drawing(output_svg, size=(f"{width}px", f"{height}px"), profile='tiny')
+
+#     # ✅ Add a white background
+#     dwg.add(dwg.rect(insert=(0, 0), size=(width, height), fill="white"))
+
+#     for contour in contours:
+#         if len(contour) > 10:  # Ignore tiny details for cleaner output
+#             path_data = "M " + " ".join(f"{p[0][0]},{p[0][1]}" for p in contour)
+#             dwg.add(dwg.path(d=path_data, stroke="black", fill="none", stroke_width=1))
+
+#     dwg.save()
+
+# def get_svg_base64(svg_path):
+#     """Convert SVG file to base64 for inline display in Streamlit."""
+#     with open(svg_path, "rb") as f:
+#         return base64.b64encode(f.read()).decode()
+
+# # Streamlit UI
+# st.set_page_config(page_title="Single-Line Art Generator", layout="wide")
+
+# st.title("✏️ Line Art Generator")
+# st.write("Upload an image and get a **clean SVG line art**.")
+
+# uploaded_file = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
+
+# if uploaded_file:
+#     col1, col2 = st.columns(2)  # ✅ Equal column size for image and SVG
+
+#     with col1:
+#         st.subheader("📷 Uploaded Image")
+#         image = Image.open(uploaded_file)
+#         st.image(image, caption="Original Image", use_container_width=True)
+
+#     # Convert PIL image to OpenCV format
+#     image_cv = np.array(image)
+#     image_cv = cv2.cvtColor(image_cv, cv2.COLOR_RGB2BGR)
+
+#     # Process image to extract edges
+#     edge_image = preprocess_image(image_cv)
+
+#     # Extract contours from edges
+#     contours = extract_contours(edge_image)
+
+#     # Create temporary file for SVG output
+#     temp_dir = tempfile.gettempdir()
+#     svg_path = os.path.join(temp_dir, "lineart.svg")
+
+#     # Convert contours to SVG
+#     h, w = edge_image.shape
+#     contours_to_svg(contours, w, h, svg_path)
+
+#     with col2:
+#         st.subheader("🖼️ SVG Line Art Preview")
+#         svg_base64 = get_svg_base64(svg_path)
+
+#         # ✅ Force white background by setting display div style
+#         svg_html = f'''
+#         <div style="background-color:white; padding:10px; border-radius:10px;">
+#             <img src="data:image/svg+xml;base64,{svg_base64}" width="100%" height="750px" />
+#         </div>
+#         '''
+#         st.markdown(svg_html, unsafe_allow_html=True)
+
+#     # Provide download button
+#     st.download_button(label="⬇️ Download SVG", data=open(svg_path, "rb"), file_name="single_line_art.svg", mime="image/svg+xml")
+
+#     st.success("✅ SVG generated successfully! Click the button to download.")
+
+
+
+
+
+
+
+
+
+# working code 
+
+
+# import streamlit as st
+# import cv2
+# import numpy as np
+# from PIL import Image
+# import io
+# import base64
+
+# # Function to convert image to line art
+# def convert_to_lineart(image, low_threshold, high_threshold, blur_kernel):
+#     # Convert PIL image to OpenCV format
+#     img_np = np.array(image)
+#     img_np = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
+    
+#     # Convert to grayscale
+#     gray = cv2.cvtColor(img_np, cv2.COLOR_BGR2GRAY)
+    
+#     # Apply Gaussian blur to reduce noise (kernel size must be odd)
+#     blur_kernel = blur_kernel if blur_kernel % 2 == 1 else blur_kernel + 1
+#     blurred = cv2.GaussianBlur(gray, (blur_kernel, blur_kernel), 0)
+    
+#     # Apply Canny edge detection
+#     edges = cv2.Canny(blurred, low_threshold, high_threshold)
+    
+#     # Invert the edges to get black lines on white background
+#     lineart = cv2.bitwise_not(edges)
+    
+#     # Convert back to RGB for display
+#     lineart_rgb = cv2.cvtColor(lineart, cv2.COLOR_GRAY2RGB)
+    
+#     return lineart_rgb
+
+# # Function to convert image to bytes for download
+# def get_image_download_link(img, filename, text):
+#     buffered = io.BytesIO()
+#     img_pil = Image.fromarray(img)
+#     img_pil.save(buffered, format="PNG")
+#     img_str = base64.b64encode(buffered.getvalue()).decode()
+#     href = f'<a href="data:image/png;base64,{img_str}" download="{filename}">{text}</a>'
+#     return href
+
+# # Streamlit app
+# st.set_page_config(layout="wide")  # Wide layout for better visibility
+# st.title("Image to Line Art Converter")
+
+# # Sidebar for parameter adjustments
+# st.sidebar.header("Adjustment Tools")
+# low_threshold = st.sidebar.slider("Low Threshold (Canny)", 50, 200, 100, step=5)
+# high_threshold = st.sidebar.slider("High Threshold (Canny)", 100, 300, 200, step=5)
+# blur_kernel = st.sidebar.slider("Blur Kernel Size", 3, 11, 5, step=2)
+
+# # File uploader in sidebar
+# uploaded_file = st.sidebar.file_uploader("Upload Image", type=["jpg", "jpeg", "png"])
+
+# # Main content area
+# if uploaded_file is not None:
+#     # Read the original image
+#     original_image = Image.open(uploaded_file)
+    
+#     # Convert to line art with user-defined parameters
+#     lineart_image = convert_to_lineart(original_image, low_threshold, high_threshold, blur_kernel)
+    
+#     # Display images side by side
+#     col1, col2 = st.columns(2)
+#     with col1:
+#         st.subheader("Original Image")
+#         st.image(
+#             original_image,
+#             caption="Original",
+#             use_column_width=False,
+#             width=400,  # Fixed width for consistent display
+#             clamp=True,
+#         )
+#     with col2:
+#         st.subheader("Line Art")
+#         st.image(
+#             lineart_image,
+#             caption="Line Art",
+#             use_column_width=False,
+#             width=400,  # Fixed width for consistent display
+#             clamp=True,
+#         )
+    
+#     # Download button
+#     st.markdown(get_image_download_link(lineart_image, "lineart.png", "Download Line Art"), unsafe_allow_html=True)
+# else:
+#     st.write("Please upload an image using the sidebar to start.")
+
+# import streamlit as st
+# import cv2
+# import numpy as np
+# from PIL import Image
+# import io
+# import base64
+
+# # Function to enhance and convert image to line art
+# def convert_to_lineart(image, low_threshold, high_threshold, blur_kernel, line_thickness):
+#     # Convert PIL image to OpenCV format
+#     img_np = np.array(image)
+#     img_np = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
+    
+#     # Convert to grayscale
+#     gray = cv2.cvtColor(img_np, cv2.COLOR_BGR2GRAY)
+    
+#     # Apply CLAHE for contrast enhancement
+#     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+#     enhanced = clahe.apply(gray)
+    
+#     # Apply Gaussian blur to reduce noise (kernel size must be odd)
+#     blur_kernel = blur_kernel if blur_kernel % 2 == 1 else blur_kernel + 1
+#     blurred = cv2.GaussianBlur(enhanced, (blur_kernel, blur_kernel), 0)
+    
+#     # Apply adaptive thresholding to enhance edges
+#     thresh = cv2.adaptiveThreshold(
+#         blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2
+#     )
+    
+#     # Apply Canny edge detection
+#     edges = cv2.Canny(thresh, low_threshold, high_threshold)
+    
+#     # Dilate edges to increase line thickness
+#     kernel = np.ones((3, 3), np.uint8)
+#     thick_edges = cv2.dilate(edges, kernel, iterations=line_thickness)
+    
+#     # Invert the edges to get black lines on white background
+#     lineart = cv2.bitwise_not(thick_edges)
+    
+#     # Convert back to RGB for display
+#     lineart_rgb = cv2.cvtColor(lineart, cv2.COLOR_GRAY2RGB)
+    
+#     return lineart_rgb
+
+# # Function to convert image to bytes for download
+# def get_image_download_link(img, filename, text):
+#     buffered = io.BytesIO()
+#     img_pil = Image.fromarray(img)
+#     img_pil.save(buffered, format="PNG")
+#     img_str = base64.b64encode(buffered.getvalue()).decode()
+#     href = f'<a href="data:image/png;base64,{img_str}" download="{filename}">{text}</a>'
+#     return href
+
+# # Streamlit app
+# st.set_page_config(layout="wide")  # Wide layout for better visibility
+
+# # Custom CSS for better image display
+# st.markdown(
+#     """
+#     <style>
+#     .image-container {
+#         border: 2px solid #ddd;
+#         padding: 10px;
+#         border-radius: 5px;
+#         background-color: #f9f9f9;
+#     }
+#     img {
+#         max-width: 100%;
+#         height: auto;
+#     }
+#     </style>
+#     """,
+#     unsafe_allow_html=True
+# )
+
+# st.title("Enhanced Image to Line Art Converter")
+
+# # Sidebar for parameter adjustments
+# st.sidebar.header("Adjustment Tools")
+# low_threshold = st.sidebar.slider("Low Threshold (Canny)", 50, 200, 80, step=5)
+# high_threshold = st.sidebar.slider("High Threshold (Canny)", 100, 300, 150, step=5)
+# blur_kernel = st.sidebar.slider("Blur Kernel Size", 3, 11, 5, step=2)
+# line_thickness = st.sidebar.slider("Line Thickness", 1, 5, 2, step=1)
+
+# # File uploader in sidebar
+# uploaded_file = st.sidebar.file_uploader("Upload Image", type=["jpg", "jpeg", "png"])
+
+# # Main content area
+# if uploaded_file is not None:
+#     # Read the original image
+#     original_image = Image.open(uploaded_file)
+    
+#     # Convert to line art with user-defined parameters
+#     lineart_image = convert_to_lineart(original_image, low_threshold, high_threshold, blur_kernel, line_thickness)
+    
+#     # Display images side by side
+#     col1, col2 = st.columns(2)
+#     with col1:
+#         st.subheader("Original Image")
+#         st.markdown('<div class="image-container">', unsafe_allow_html=True)
+#         st.image(
+#             original_image,
+#             caption="Original",
+#             use_column_width=False,
+#             width=400,  # Fixed width for consistent display
+#             clamp=True,
+#         )
+#         st.markdown('</div>', unsafe_allow_html=True)
+#     with col2:
+#         st.subheader("Enhanced Line Art")
+#         st.markdown('<div class="image-container">', unsafe_allow_html=True)
+#         st.image(
+#             lineart_image,
+#             caption="Line Art",
+#             use_column_width=False,
+#             width=400,  # Fixed width for consistent display
+#             clamp=True,
+#         )
+#         st.markdown('</div>', unsafe_allow_html=True)
+    
+#     # Download button
+#     st.markdown(
+#         get_image_download_link(lineart_image, "enhanced_lineart.png", "Download Enhanced Line Art"),
+#         unsafe_allow_html=True
+#     )
+# else:
+#     st.write("Please upload an image using the sidebar to start.")
+
+
+# import streamlit as st
+# import cv2
+# import numpy as np
+# from PIL import Image
+# import io
+# import base64
+
+# # Function to enhance and convert image to line art
+# def convert_to_lineart(image, low_threshold, high_threshold, blur_kernel, line_thickness):
+#     # Convert PIL image to OpenCV format
+#     img_np = np.array(image)
+#     img_np = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
+    
+#     # Convert to grayscale
+#     gray = cv2.cvtColor(img_np, cv2.COLOR_BGR2GRAY)
+    
+#     # Apply CLAHE for contrast enhancement
+#     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+#     enhanced = clahe.apply(gray)
+    
+#     # Apply Gaussian blur to reduce noise (kernel size must be odd)
+#     blur_kernel = blur_kernel if blur_kernel % 2 == 1 else blur_kernel + 1
+#     blurred = cv2.GaussianBlur(enhanced, (blur_kernel, blur_kernel), 0)
+    
+#     # Apply adaptive thresholding to enhance edges
+#     thresh = cv2.adaptiveThreshold(
+#         blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2
+#     )
+    
+#     # Apply Canny edge detection
+#     edges = cv2.Canny(thresh, low_threshold, high_threshold)
+    
+#     # Dilate edges to increase line thickness
+#     kernel = np.ones((3, 3), np.uint8)
+#     thick_edges = cv2.dilate(edges, kernel, iterations=line_thickness)
+    
+#     # Invert the edges to get black lines on white background
+#     lineart = cv2.bitwise_not(thick_edges)
+    
+#     # Convert back to RGB for display
+#     lineart_rgb = cv2.cvtColor(lineart, cv2.COLOR_GRAY2RGB)
+    
+#     return lineart_rgb
+
+# # Function to convert image to bytes for download
+# def get_image_download_link(img, filename, text):
+#     buffered = io.BytesIO()
+#     img_pil = Image.fromarray(img)
+#     img_pil.save(buffered, format="PNG")
+#     img_str = base64.b64encode(buffered.getvalue()).decode()
+#     href = f'<a href="data:image/png;base64,{img_str}" download="{filename}">{text}</a>'
+#     return href
+
+# # Streamlit app
+# st.set_page_config(layout="wide")  # Wide layout for better visibility
+
+# # Custom CSS for better image display
+# st.markdown(
+#     """
+#     <style>
+#     .image-container {
+#         border: 2px solid #ddd;
+#         padding: 10px;
+#         border-radius: 5px;
+#         background-color: #f9f9f9;
+#     }
+#     img {
+#         max-width: 100%;
+#         height: auto;
+#     }
+#     </style>
+#     """,
+#     unsafe_allow_html=True
+# )
+
+# st.title("Enhanced Image to Line Art Converter")
+
+# # Sidebar for parameter adjustments
+# st.sidebar.header("Adjustment Tools")
+# low_threshold = st.sidebar.slider("Low Threshold (Canny)", 50, 200, 80, step=5)
+# high_threshold = st.sidebar.slider("High Threshold (Canny)", 100, 300, 150, step=5)
+# blur_kernel = st.sidebar.slider("Blur Kernel Size", 3, 11, 5, step=2)
+# line_thickness = st.sidebar.slider("Line Thickness", 1, 5, 2, step=1)
+
+# # File uploader in sidebar
+# uploaded_file = st.sidebar.file_uploader("Upload Image", type=["jpg", "jpeg", "png"])
+
+# # Main content area
+# if uploaded_file is not None:
+#     # Read the original image
+#     original_image = Image.open(uploaded_file)
+    
+#     # Convert to line art with user-defined parameters
+#     lineart_image = convert_to_lineart(original_image, low_threshold, high_threshold, blur_kernel, line_thickness)
+    
+#     # Display images side by side
+#     col1, col2 = st.columns(2)
+#     with col1:
+#         st.subheader("Original Image")
+#         st.markdown('<div class="image-container">', unsafe_allow_html=True)
+#         st.image(
+#             original_image,
+#             caption="Original",
+#             use_column_width=False,
+#             width=400,  # Fixed width for consistent display
+#             clamp=True,
+#         )
+#         st.markdown('</div>', unsafe_allow_html=True)
+#     with col2:
+#         st.subheader("Enhanced Line Art")
+#         st.markdown('<div class="image-container">', unsafe_allow_html=True)
+#         st.image(
+#             lineart_image,
+#             caption="Line Art",
+#             use_column_width=False,
+#             width=400,  # Fixed width for consistent display
+#             clamp=True,
+#         )
+#         st.markdown('</div>', unsafe_allow_html=True)
+    
+#     # Download button
+#     st.markdown(
+#         get_image_download_link(lineart_image, "enhanced_lineart.png", "Download Enhanced Line Art"),
+#         unsafe_allow_html=True
+#     )
+# else:
+#     st.write("Please upload an image using the sidebar to start.")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import cv2
+import numpy as np
+import svgwrite
+import os
+from PIL import Image
+import tempfile
+import base64
+import streamlit as st
+
+def extract_face_features(image):
+    """Extract facial features using more robust techniques"""
+    # Convert to grayscale
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    
+    # Create copies for different processing techniques
+    # 1. Canny edge detection (for sharp edges)
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    edges_canny = cv2.Canny(blurred, 30, 150)
+    
+    # 2. Laplacian edge detection (good for facial features)
+    laplacian = cv2.Laplacian(blurred, cv2.CV_8U, ksize=5)
+    edges_laplacian = cv2.threshold(laplacian, 20, 255, cv2.THRESH_BINARY)[1]
+    
+    # 3. Sobel operator (for directional edges)
+    sobelx = cv2.Sobel(blurred, cv2.CV_8U, 1, 0, ksize=3)
+    sobely = cv2.Sobel(blurred, cv2.CV_8U, 0, 1, ksize=3)
+    edges_sobel = cv2.bitwise_or(sobelx, sobely)
+    
+    # Combine all edge detection methods - prioritize facial features
+    combined_edges = np.zeros_like(edges_canny)
+    
+    # First add Canny edges (usually the cleanest)
+    combined_edges = cv2.bitwise_or(combined_edges, edges_canny)
+    
+    # Add selective Laplacian edges (good for facial details)
+    kernel = np.ones((2, 2), np.uint8)
+    edges_laplacian = cv2.dilate(edges_laplacian, kernel, iterations=1)
+    combined_edges = cv2.bitwise_or(combined_edges, edges_laplacian)
+    
+    # Use sobel more selectively - focus on strong edges
+    _, sobel_thresh = cv2.threshold(edges_sobel, 60, 255, cv2.THRESH_BINARY)
+    combined_edges = cv2.bitwise_or(combined_edges, sobel_thresh)
+    
+    # Clean up with morphological operations
+    kernel = np.ones((2, 2), np.uint8)
+    combined_edges = cv2.morphologyEx(combined_edges, cv2.MORPH_CLOSE, kernel)
+    combined_edges = cv2.morphologyEx(combined_edges, cv2.MORPH_OPEN, kernel)
+    
+    return combined_edges
+
+def enhance_portrait_features(edges, image):
+    """Enhance portrait-specific features like eyes, nose, mouth for better recognition"""
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    h, w = image.shape[:2]
+    
+    # Try to detect face using Haar cascades if available
+    face_cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+    eye_cascade_path = cv2.data.haarcascades + 'haarcascade_eye.xml'
+    smile_cascade_path = cv2.data.haarcascades + 'haarcascade_smile.xml'
+    
+    enhanced_edges = edges.copy()
+    
+    if os.path.exists(face_cascade_path) and os.path.exists(eye_cascade_path):
+        face_cascade = cv2.CascadeClassifier(face_cascade_path)
+        eye_cascade = cv2.CascadeClassifier(eye_cascade_path)
+        
+        faces = face_cascade.detectMultiScale(gray, 1.2, 5, minSize=(int(w/10), int(h/10)))
+        
+        # If no faces detected, try with more relaxed parameters
+        if len(faces) == 0:
+            faces = face_cascade.detectMultiScale(gray, 1.1, 3, minSize=(int(w/12), int(h/12)))
+        
+        for (x, y, w, h) in faces:
+            # Focus on facial region
+            roi_gray = gray[y:y+h, x:x+w]
+            roi_edges = enhanced_edges[y:y+h, x:x+w]
+            
+            # Enhance eyes - crucial for recognition
+            eyes = eye_cascade.detectMultiScale(roi_gray)
+            for (ex, ey, ew, eh) in eyes:
+                # Extract eye contours with higher sensitivity
+                eye_roi = roi_gray[ey:ey+eh, ex:ex+ew]
+                eye_edges = cv2.Canny(eye_roi, 20, 80)
+                roi_edges[ey:ey+eh, ex:ex+ew] = cv2.bitwise_or(roi_edges[ey:ey+eh, ex:ex+ew], eye_edges)
+            
+            # Try to detect smile/mouth
+            if os.path.exists(smile_cascade_path):
+                smile_cascade = cv2.CascadeClassifier(smile_cascade_path)
+                smiles = smile_cascade.detectMultiScale(roi_gray, 1.8, 20)
+                for (sx, sy, sw, sh) in smiles:
+                    mouth_roi = roi_gray[sy:sy+sh, sx:sx+sw]
+                    mouth_edges = cv2.Canny(mouth_roi, 20, 80)
+                    roi_edges[sy:sy+sh, sx:sx+sw] = cv2.bitwise_or(roi_edges[sy:sy+sh, sx:sx+sw], mouth_edges)
+            
+            # Add custom enhancement for facial features if cascades didn't work well
+            # Enhance the eye region by assumption (upper part of face)
+            eye_region_y = y + int(h * 0.2)
+            eye_region_h = int(h * 0.25)
+            eye_region = gray[eye_region_y:eye_region_y+eye_region_h, x:x+w]
+            eye_region_edges = cv2.Canny(eye_region, 30, 90)
+            enhanced_edges[eye_region_y:eye_region_y+eye_region_h, x:x+w] = cv2.bitwise_or(
+                enhanced_edges[eye_region_y:eye_region_y+eye_region_h, x:x+w], eye_region_edges)
+            
+            # Enhance the mouth region
+            mouth_region_y = y + int(h * 0.6)
+            mouth_region_h = int(h * 0.25)
+            mouth_region = gray[mouth_region_y:mouth_region_y+mouth_region_h, x:x+w]
+            mouth_region_edges = cv2.Canny(mouth_region, 30, 90)
+            enhanced_edges[mouth_region_y:mouth_region_y+mouth_region_h, x:x+w] = cv2.bitwise_or(
+                enhanced_edges[mouth_region_y:mouth_region_y+mouth_region_h, x:x+w], mouth_region_edges)
+            
+            # Face region - focus on enhancing edges
+            enhanced_edges[y:y+h, x:x+w] = roi_edges
+    
+    return enhanced_edges
+
+def simplify_contours(contours, detail_level=0.5):
+    """Simplify contours to remove noise and emphasize key features"""
+    simplified = []
+    
+    for contour in contours:
+        # Adjust epsilon based on detail level and contour length
+        epsilon = (0.01 - detail_level * 0.009) * cv2.arcLength(contour, True)
+        approx = cv2.approxPolyDP(contour, epsilon, True)
+        simplified.append(approx)
+    
+    return simplified
+
+def filter_contours(contours, min_length=10, min_area=20, max_area=None):
+    """Filter contours based on various criteria to keep only meaningful ones"""
+    filtered = []
+    
+    if max_area is None:
+        # Set default max area as a percentage of the image size
+        max_area = float('inf')
+    
+    for contour in contours:
+        area = cv2.contourArea(contour)
+        length = len(contour)
+        
+        if length >= min_length and area >= min_area and area <= max_area:
+            # Additional criteria: complexity relative to area
+            perimeter = cv2.arcLength(contour, True)
+            if perimeter > 0:  # Avoid division by zero
+                complexity = area / perimeter
+                if complexity >= 0.1:  # Filter out very irregular small shapes
+                    filtered.append(contour)
+    
+    return filtered
+
+def create_portrait_line_art(image, detail_level=0.7, min_area=10, min_length=5, smoothness=0.15):
+    """Create line art optimized for portrait images with improved recognition"""
+    # Extract edges using multiple methods
+    edges = extract_face_features(image)
+    
+    # Enhance portrait-specific features
+    enhanced_edges = enhance_portrait_features(edges, image)
+    
+    # Find contours
+    contours, _ = cv2.findContours(enhanced_edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_TC89_KCOS)
+    
+    # Calculate image dimensions for scaling parameters
+    height, width = image.shape[:2]
+    img_area = height * width
+    
+    # Scale min_area based on image size
+    scaled_min_area = min_area * (img_area / 640000)  # Base scale on a 800x800 image
+    
+    # Filter contours based on parameters
+    max_area = img_area * 0.8  # Avoid contours that are too large
+    filtered_contours = filter_contours(contours, min_length, scaled_min_area, max_area)
+    
+    # Apply Douglas-Peucker algorithm for smoothing
+    simplified_contours = simplify_contours(filtered_contours, detail_level)
+    
+    # Apply further smoothing for aesthetic lines
+    smoothed = []
+    for contour in simplified_contours:
+        # Only smooth contours with enough points
+        if len(contour) > 5:
+            # Create a closed spline approximation
+            # The lower the smoothness, the closer to original
+            epsilon = smoothness * cv2.arcLength(contour, True)
+            approx = cv2.approxPolyDP(contour, epsilon, True)
+            smoothed.append(approx)
+        else:
+            smoothed.append(contour)
+    
+    return smoothed, enhanced_edges
+
+def preprocess_image(image, target_size=800):
+    """Preprocess image to improve line art results"""
+    # Resize image to a standard size while maintaining aspect ratio
+    h, w = image.shape[:2]
+    scale = target_size / max(h, w)
+    
+    if scale < 1:  # Only resize if the image is too large
+        new_h, new_w = int(h * scale), int(w * scale)
+        image = cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_AREA)
+    
+    # Enhance contrast
+    lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+    l, a, b = cv2.split(lab)
+    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+    l = clahe.apply(l)
+    enhanced_lab = cv2.merge((l, a, b))
+    enhanced_image = cv2.cvtColor(enhanced_lab, cv2.COLOR_LAB2BGR)
+    
+    # Apply bilateral filter to reduce noise while preserving edges
+    enhanced_image = cv2.bilateralFilter(enhanced_image, 9, 75, 75)
+    
+    return enhanced_image
+
+def contours_to_svg(contours, width, height, output_path, stroke_width=1.5, stroke_color="black", background_color="white"):
+    """Convert contours to SVG file with clean lines"""
+    dwg = svgwrite.Drawing(output_path, size=(f"{width}px", f"{height}px"), profile='tiny')
+    
+    # Add background
+    dwg.add(dwg.rect(insert=(0, 0), size=(width, height), fill=background_color))
+    
+    # Add each contour as a path with smoother connections
+    for contour in contours:
+        if len(contour) >= 2:  # Need at least 2 points for a line
+            # Create SVG path - start with move to first point
+            path_data = f"M{contour[0][0][0]},{contour[0][0][1]}"
+            
+            # Add line segments
+            for i in range(1, len(contour)):
+                path_data += f" L{contour[i][0][0]},{contour[i][0][1]}"
+            
+            # Consider closing the path if endpoints are close
+            first_point = contour[0][0]
+            last_point = contour[-1][0]
+            distance = np.sqrt((first_point[0] - last_point[0])**2 + (first_point[1] - last_point[1])**2)
+            
+            if distance < 20:  # Close if endpoints are within 20 pixels
+                path_data += " Z"
+            
+            # Add path to SVG with rounded corners and line caps for smoother appearance
+            dwg.add(dwg.path(d=path_data, stroke=stroke_color, fill="none", stroke_width=stroke_width, 
+                           stroke_linejoin="round", stroke_linecap="round"))
+    
+    # Save SVG file
+    dwg.save()
+
+def get_svg_base64(svg_path):
+    """Convert SVG to base64 for displaying in Streamlit"""
+    with open(svg_path, "rb") as f:
+        return base64.b64encode(f.read()).decode()
+
+# Streamlit app with parallel image display and improved UI
+def main():
+    st.set_page_config(page_title="Portrait Line Art Generator", layout="wide", initial_sidebar_state="expanded")
+    
+    # Improved CSS for better image display
+    st.markdown("""
+    <style>
+    .main {
+        background-color: #0e1117;
+        color: white;
+    }
+    .block-container {
+        max-width: 1400px;
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
+    .settings-column {
+        background-color: #1e2126;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    }
+    .settings-header {
+        font-size: 1.2rem;
+        font-weight: bold;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid #444;
+        padding-bottom: 0.5rem;
+    }
+    .image-display-area {
+        display: flex;
+        flex-direction: row;
+        gap: 20px;
+        margin-top: 20px;
+    }
+    .image-container {
+        flex: 1;
+        background-color: #1e2126;
+        border-radius: 10px;
+        padding: 15px;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    }
+    .image-container img {
+        width: 100%;
+        height: auto;
+        max-height: 500px;
+        object-fit: contain;
+    }
+    .image-header {
+        font-size: 1.1rem;
+        margin-bottom: 0.8rem;
+        text-align: center;
+        color: white;
+    }
+    .stButton>button {
+        width: 100%;
+        background-color: #4c8bf5;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        padding: 0.5rem;
+        font-weight: bold;
+        margin-top: 1rem;
+    }
+    .stSlider>div>div>div {
+        background-color: #4c8bf5;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    st.title("✏️ Portrait Line Art Generator")
+    st.write("Upload a portrait photo to generate detailed line art for printing or digital use.")
+    
+    # Split the page into two columns
+    col_settings, col_images = st.columns([1, 3])
+    
+    with col_settings:
+        st.markdown('<div class="settings-column">', unsafe_allow_html=True)
+        st.markdown('<div class="settings-header">Upload & Settings</div>', unsafe_allow_html=True)
+        
+        # Upload interface
+        uploaded_file = st.file_uploader("Upload a portrait photo", type=["jpg", "jpeg", "png"])
+        
+        if uploaded_file:
+            # Detail level - higher values for more details
+            detail_level = st.slider("Detail Level", 0.1, 1.0, 0.7, 0.05, 
+                                  help="Higher values capture more details")
+            
+            # Line smoothness - higher values for smoother lines
+            smoothness = st.slider("Line Smoothness", 0.05, 0.5, 0.15, 0.05,
+                                 help="Higher values create smoother lines")
+            
+            # Minimum feature size - smaller values include more small details
+            min_area = st.slider("Minimum Feature Size", 5, 50, 10, 
+                              help="Smaller values include more small details")
+            
+            # Minimum line length - smaller values include shorter lines
+            min_length = st.slider("Minimum Line Length", 3, 20, 5,
+                                help="Smaller values include shorter lines")
+            
+            # Line thickness
+            stroke_width = st.slider("Line Thickness", 0.5, 3.0, 1.0, 0.1,
+                                  help="Adjust the thickness of lines in the SVG")
+            
+            # Color options
+            stroke_color = st.color_picker("Line Color", "#000000")
+            background_color = st.color_picker("Background Color", "#FFFFFF")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Image display area
+    if uploaded_file:
+        with col_images:
+            # Process the image
+            image = Image.open(uploaded_file)
+            image_cv = np.array(image)
+            image_cv = cv2.cvtColor(image_cv, cv2.COLOR_RGB2BGR)
+            
+            # Preprocess image for better line art
+            processed_image = preprocess_image(image_cv)
+            
+            # Generate line art with parameters
+            contours, edges = create_portrait_line_art(
+                processed_image, detail_level, min_area, min_length, smoothness
+            )
+            
+            # Save SVG
+            temp_dir = tempfile.gettempdir()
+            svg_path = os.path.join(temp_dir, "portrait_line_art.svg")
+            h, w = processed_image.shape[:2]
+            contours_to_svg(contours, w, h, svg_path, stroke_width, stroke_color, background_color)
+            
+            # Get base64 SVG for display
+            svg_base64 = get_svg_base64(svg_path)
+            
+            # Display original and line art side by side
+            st.markdown('<div class="image-display-area">', unsafe_allow_html=True)
+            
+            # Original image container
+            st.markdown('<div class="image-container">', unsafe_allow_html=True)
+            st.markdown('<div class="image-header">Original Portrait</div>', unsafe_allow_html=True)
+            st.image(image, use_column_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Line art container
+            st.markdown('<div class="image-container">', unsafe_allow_html=True)
+            st.markdown('<div class="image-header">Line Art Result</div>', unsafe_allow_html=True)
+            svg_html = f'''
+            <img src="data:image/svg+xml;base64,{svg_base64}" style="background-color:{background_color};" />
+            '''
+            st.markdown(svg_html, unsafe_allow_html=True)
+            
+            # Download button inside the container
+            st.download_button(
+                label="⬇️ Download Line Art SVG",
+                data=open(svg_path, "rb"),
+                file_name="portrait_line_art.svg",
+                mime="image/svg+xml",
+                key="download_svg"
+            )
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            st.success("✅ Line art generated successfully! Adjust the settings and the result will update automatically.")
+
+if __name__ == "__main__":
+    main()

@@ -1,95 +1,73 @@
 import streamlit as st
 import cv2
 import numpy as np
-import svgwrite
 from PIL import Image
-import tempfile
-import os
+import io
 import base64
 
-def preprocess_image(image):
-    """Convert image to a clean binary edge map."""
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    
-    # Apply Gaussian blur to reduce noise
-    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-    
-    # Canny Edge Detection (Tuned for cleaner lines)
-    edges = cv2.Canny(blurred, threshold1=50, threshold2=150)
+def convert_to_lineart(image, low_threshold, high_threshold, blur_kernel, line_thickness):
+    # Convert PIL to OpenCV
+    img_np = np.array(image)
+    img_np = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
 
-    return edges
+    # Grayscale
+    gray = cv2.cvtColor(img_np, cv2.COLOR_BGR2GRAY)
 
-def extract_contours(edge_image):
-    """Extracts continuous contours from the edge image."""
-    contours, _ = cv2.findContours(edge_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    return contours
+    # Enhance contrast
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    enhanced = clahe.apply(gray)
 
-def contours_to_svg(contours, width, height, output_svg):
-    """Convert contours to an SVG file with smooth lines."""
-    dwg = svgwrite.Drawing(output_svg, size=(f"{width}px", f"{height}px"), profile='tiny')
+    # Blur to remove noise
+    blur_kernel = blur_kernel if blur_kernel % 2 == 1 else blur_kernel + 1
+    blurred = cv2.GaussianBlur(enhanced, (blur_kernel, blur_kernel), 0)
 
-    # ✅ Add a white background
-    dwg.add(dwg.rect(insert=(0, 0), size=(width, height), fill="white"))
+    # Canny Edge Detection
+    edges = cv2.Canny(blurred, low_threshold, high_threshold)
 
-    for contour in contours:
-        if len(contour) > 10:  # Ignore tiny details for cleaner output
-            path_data = "M " + " ".join(f"{p[0][0]},{p[0][1]}" for p in contour)
-            dwg.add(dwg.path(d=path_data, stroke="black", fill="none", stroke_width=1))
+    # Optional: Dilate to make edges thicker
+    kernel = np.ones((2, 2), np.uint8)
+    edges_dilated = cv2.dilate(edges, kernel, iterations=line_thickness)
 
-    dwg.save()
+    # Invert to get black lines on white background
+    inverted = cv2.bitwise_not(edges_dilated)
 
-def get_svg_base64(svg_path):
-    """Convert SVG file to base64 for inline display in Streamlit."""
-    with open(svg_path, "rb") as f:
-        return base64.b64encode(f.read()).decode()
+    # Convert to RGB for Streamlit
+    result = cv2.cvtColor(inverted, cv2.COLOR_GRAY2RGB)
+    return result
+
+# Convert image to downloadable link
+def get_image_download_link(img, filename, text):
+    buffered = io.BytesIO()
+    img_pil = Image.fromarray(img)
+    img_pil.save(buffered, format="PNG")
+    img_str = base64.b64encode(buffered.getvalue()).decode()
+    return f'<a href="data:image/png;base64,{img_str}" download="{filename}">{text}</a>'
 
 # Streamlit UI
-st.set_page_config(page_title="Single-Line Art Generator", layout="wide")
+st.set_page_config(layout="wide")
+st.title("🖊️ Line Art Converter")
 
-st.title("✏️ Line Art Generator")
-st.write("Upload an image and get a **clean SVG line art**.")
+# Sidebar Settings
+st.sidebar.header("Parameters")
+low_threshold = st.sidebar.slider("Canny Low Threshold", 10, 200, 50, step=5)
+high_threshold = st.sidebar.slider("Canny High Threshold", 50, 300, 150, step=5)
+blur_kernel = st.sidebar.slider("Blur Kernel", 1, 11, 3, step=2)
+line_thickness = st.sidebar.slider("Line Thickness", 1, 5, 1)
 
-uploaded_file = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
+uploaded_file = st.sidebar.file_uploader("Upload Image", type=["png", "jpg", "jpeg"])
 
 if uploaded_file:
-    col1, col2 = st.columns(2)  # ✅ Equal column size for image and SVG
+    original = Image.open(uploaded_file).convert("RGB")
+    lineart_img = convert_to_lineart(original, low_threshold, high_threshold, blur_kernel, line_thickness)
 
+    col1, col2 = st.columns(2)
     with col1:
-        st.subheader("📷 Uploaded Image")
-        image = Image.open(uploaded_file)
-        st.image(image, caption="Original Image", use_container_width=True)
-
-    # Convert PIL image to OpenCV format
-    image_cv = np.array(image)
-    image_cv = cv2.cvtColor(image_cv, cv2.COLOR_RGB2BGR)
-
-    # Process image to extract edges
-    edge_image = preprocess_image(image_cv)
-
-    # Extract contours from edges
-    contours = extract_contours(edge_image)
-
-    # Create temporary file for SVG output
-    temp_dir = tempfile.gettempdir()
-    svg_path = os.path.join(temp_dir, "lineart.svg")
-
-    # Convert contours to SVG
-    h, w = edge_image.shape
-    contours_to_svg(contours, w, h, svg_path)
-
+        st.subheader("Original Image")
+        st.image(original, width=400)
     with col2:
-        st.subheader("🖼️ SVG Line Art Preview")
-        svg_base64 = get_svg_base64(svg_path)
+        st.subheader("Line Art")
+        st.image(lineart_img, width=400)
 
-        # ✅ Force white background by setting display div style
-        svg_html = f'''
-        <div style="background-color:white; padding:10px; border-radius:10px;">
-            <img src="data:image/svg+xml;base64,{svg_base64}" width="100%" height="750px" />
-        </div>
-        '''
-        st.markdown(svg_html, unsafe_allow_html=True)
-
-    # Provide download button
-    st.download_button(label="⬇️ Download SVG", data=open(svg_path, "rb"), file_name="single_line_art.svg", mime="image/svg+xml")
-
-    st.success("✅ SVG generated successfully! Click the button to download.")
+    st.markdown(get_image_download_link(lineart_img, "line_art.png", "📥 Download Line Art"), unsafe_allow_html=True)
+else:
+    st.info("Upload an image using the sidebar to begin.")
